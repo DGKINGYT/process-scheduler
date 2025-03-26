@@ -1,9 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from './components/ui/card';
-import { Button } from './components/ui/button';
-import { Input } from './components/ui/input';
-import { Label } from './components/ui/label';
-import { Server, Plus, Trash2, Play } from 'lucide-react';
+import React, { useState } from 'react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
 
 // Process states
 const PROCESS_STATES = {
@@ -24,6 +20,7 @@ const SCHEDULING_ALGORITHMS = {
 
 const ProcessSchedulerVisualization = () => {
   const [processes, setProcesses] = useState([]);
+  const [ganttData, setGanttData] = useState([]);
   const [newProcess, setNewProcess] = useState({
     id: '',
     arrivalTime: '',
@@ -83,11 +80,19 @@ const ProcessSchedulerVisualization = () => {
   const simulateFCFS = () => {
     const sortedProcesses = [...processes].sort((a, b) => a.arrivalTime - b.arrivalTime);
     let currentTime = 0;
+    const ganttChartData = [];
 
-    return sortedProcesses.map(process => {
+    const scheduledProcesses = sortedProcesses.map(process => {
       const processStart = Math.max(currentTime, process.arrivalTime);
       currentTime = processStart + process.burstTime;
       
+      // Prepare Gantt chart data
+      ganttChartData.push({
+        process: `P${process.id}`,
+        start: processStart,
+        end: currentTime
+      });
+
       return {
         ...process,
         startTime: processStart,
@@ -96,6 +101,9 @@ const ProcessSchedulerVisualization = () => {
         waitingTime: processStart - process.arrivalTime
       };
     });
+
+    setGanttData(ganttChartData);
+    return scheduledProcesses;
   };
 
   // Run scheduling simulation
@@ -115,70 +123,76 @@ const ProcessSchedulerVisualization = () => {
   };
 
   return (
-    <Card className="w-full max-w-4xl">
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Server className="mr-2" /> Process Scheduler
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div className="container mx-auto p-4 max-w-4xl">
+      <div className="bg-white shadow-md rounded-lg p-6">
+        <h2 className="text-2xl font-bold mb-4 flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" />
+          </svg>
+          Process Scheduler
+        </h2>
+
         {/* Process Input Form */}
         <div className="grid grid-cols-4 gap-4 mb-4">
           <div>
-            <Label>Process ID</Label>
-            <Input 
+            <label className="block text-sm font-medium text-gray-700 mb-1">Process ID</label>
+            <input 
               name="id"
               value={newProcess.id}
               onChange={handleInputChange}
               placeholder="Process ID"
               type="text"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
             />
           </div>
           <div>
-            <Label>Arrival Time</Label>
-            <Input 
+            <label className="block text-sm font-medium text-gray-700 mb-1">Arrival Time</label>
+            <input 
               name="arrivalTime"
               value={newProcess.arrivalTime}
               onChange={handleInputChange}
               placeholder="Arrival Time"
               type="number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
             />
           </div>
           <div>
-            <Label>Burst Time</Label>
-            <Input 
+            <label className="block text-sm font-medium text-gray-700 mb-1">Burst Time</label>
+            <input 
               name="burstTime"
               value={newProcess.burstTime}
               onChange={handleInputChange}
               placeholder="Burst Time"
               type="number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
             />
           </div>
           <div>
-            <Label>Priority (Optional)</Label>
-            <Input 
+            <label className="block text-sm font-medium text-gray-700 mb-1">Priority (Optional)</label>
+            <input 
               name="priority"
               value={newProcess.priority}
               onChange={handleInputChange}
               placeholder="Priority"
               type="number"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
             />
           </div>
         </div>
 
         {/* Add Process Button */}
-        <Button 
+        <button 
           onClick={addProcess}
-          className="mb-4"
+          className="mb-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition duration-300"
         >
-          <Plus className="mr-2" /> Add Process
-        </Button>
+          + Add Process
+        </button>
 
         {/* Scheduling Algorithm Selector */}
         <div className="mb-4">
-          <Label>Scheduling Algorithm</Label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Scheduling Algorithm</label>
           <select 
-            className="w-full p-2 border rounded"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
             value={algorithm}
             onChange={(e) => setAlgorithm(e.target.value)}
           >
@@ -189,54 +203,86 @@ const ProcessSchedulerVisualization = () => {
         </div>
 
         {/* Process List */}
-        <Card className="mb-4">
-          <CardHeader>
-            <CardTitle>Processes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {processes.length === 0 ? (
-              <p>No processes added yet</p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {processes.map(process => (
-                  <Card key={process.id} className="p-4 relative">
-                    <Button 
-                      variant="destructive" 
-                      size="icon" 
-                      className="absolute top-2 right-2"
-                      onClick={() => removeProcess(process.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                    <h4 className="font-bold mb-2">Process {process.id}</h4>
-                    <p>Arrival Time: {process.arrivalTime}</p>
-                    <p>Burst Time: {process.burstTime}</p>
-                    {process.priority !== undefined && (
-                      <p>Priority: {process.priority}</p>
-                    )}
-                    {process.completionTime && (
-                      <>
-                        <p>Completion Time: {process.completionTime}</p>
-                        <p>Turn Around Time: {process.turnAroundTime}</p>
-                        <p>Waiting Time: {process.waitingTime}</p>
-                      </>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="bg-gray-100 rounded-lg p-4 mb-4">
+          <h3 className="text-lg font-semibold mb-3">Processes</h3>
+          {processes.length === 0 ? (
+            <p className="text-gray-500">No processes added yet</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {processes.map(process => (
+                <div key={process.id} className="bg-white shadow rounded-lg p-4 relative">
+                  <button 
+                    onClick={() => removeProcess(process.id)}
+                    className="absolute top-2 right-2 text-red-500 hover:text-red-700"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                  <h4 className="font-bold mb-2">Process {process.id}</h4>
+                  <p>Arrival Time: {process.arrivalTime}</p>
+                  <p>Burst Time: {process.burstTime}</p>
+                  {process.priority !== undefined && (
+                    <p>Priority: {process.priority}</p>
+                  )}
+                  {process.completionTime && (
+                    <>
+                      <p>Completion Time: {process.completionTime}</p>
+                      <p>Turn Around Time: {process.turnAroundTime}</p>
+                      <p>Waiting Time: {process.waitingTime}</p>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Simulate Button */}
-        <Button 
+        <button 
           onClick={runSimulation}
           disabled={processes.length === 0}
+          className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
-          <Play className="mr-2" /> Run Simulation
-        </Button>
-      </CardContent>
-    </Card>
+          ▶ Run Simulation
+        </button>
+
+        {/* Gantt Chart Visualization */}
+        {ganttData.length > 0 && (
+          <div className="mt-4 bg-gray-100 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-3">Gantt Chart</h3>
+            <BarChart 
+              width={730} 
+              height={250} 
+              data={ganttData}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="process" 
+                label={{ value: 'Processes', position: 'insideBottom', offset: -5 }}
+              />
+              <YAxis 
+                label={{ value: 'Time', angle: -90, position: 'insideLeft' }}
+              />
+              <Tooltip />
+              <Legend />
+              <Bar 
+                dataKey="start" 
+                stackId="a" 
+                fill="#8884d8" 
+                name="Start Time"
+              />
+              <Bar 
+                dataKey="end" 
+                stackId="a" 
+                fill="#82ca9d" 
+                name="End Time"
+              />
+            </BarChart>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
